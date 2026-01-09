@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/liflow_widget_bg"
+    android:padding="18dp">
+
+    <!-- EMPTY STATE -->
+    <TextView
+        android:id="@+id/empty_state"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="Sem tarefa agora"
+        android:textColor="#8E8E93"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:visibility="visible" />
+
+    <!-- CARD -->
+    <RelativeLayout
+        android:id="@+id/content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/task_card_bg"
+        android:padding="18dp"
+        android:visibility="gone">
+
+        <!-- BARRINHA ROSA -->
+        <TextView
+            android:id="@+id/pink_bar"
+            android:layout_width="4dp"
+            android:layout_height="48dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="#F2A1A8"
+            android:text="" />
+
+        <!-- CHECK CIRCLE -->
+        <TextView
+            android:id="@+id/check_circle"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_alignParentEnd="true"
+            android:text="○"
+            android:textSize="20sp"
+            android:textColor="#F2A1A8"
+            android:gravity="center"
+            android:background="@drawable/check_circle_bg" />
+
+        <!-- TEXT CONTAINER -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/pink_bar"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="36dp"
+            android:orientation="vertical">
+
+            <!-- HORA -->
+            <TextView
+                android:id="@+id/time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="09:41"
+                android:textColor="#8E8E93"
+                android:textSize="14sp" />
+
+            <!-- TÍTULO -->
+            <TextView
+                android:id="@+id/task_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Designing"
+                android:textColor="#2C2C2E"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:maxLines="2"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+    </RelativeLayout>
+
+</FrameLayout>

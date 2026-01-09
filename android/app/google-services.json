@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "975830813530",
+    "project_id": "liflow-c4a7d",
+    "storage_bucket": "liflow-c4a7d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975830813530:android:223fa975a666642035c163",
+        "android_client_info": {
+          "package_name": "com.example.liflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFw1Gt5OsqeyDZfCvI6M91ArK1SNtV_EI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
