@@ -55,7 +55,7 @@ class FirestoreActivityService {
   /// Watches the stored mood for a day (ritual do dia).
   ///
   /// Stored on the day document to keep it lightweight:
-  /// - ritualMood: 'low' | 'ok' | 'high'
+  /// - ritualMood: selected image key, e.g. 'feliz' or 'preocupada'
   /// - ritualUpdatedAt: Timestamp
   Stream<String?> watchDayRitualMood({
     required String weekId,
@@ -302,10 +302,13 @@ class FirestoreActivityService {
     required String dayId,
     required String activityId,
     required bool done,
+    DateTime? completedAt,
   }) async {
     await _activityRef(weekId, dayId, activityId).update(<String, dynamic>{
       'status': done ? ActivityStatus.done.value : ActivityStatus.pending.value,
-      'completedAt': done ? Timestamp.now() : null,
+      'completedAt': done
+          ? Timestamp.fromDate(completedAt ?? DateTime.now())
+          : null,
       'updatedAt': Timestamp.now(),
     });
   }

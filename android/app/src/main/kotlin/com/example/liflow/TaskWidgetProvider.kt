@@ -3,7 +3,6 @@ package com.example.liflow
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
@@ -30,7 +29,7 @@ class TaskWidgetProvider : HomeWidgetProvider() {
     appWidgetIds: IntArray,
     widgetData: SharedPreferences
   ) {
-      var nextRefreshAt: Long? = null
+    var nextRefreshAt: Long? = null
 
     appWidgetIds.forEach { widgetId ->
       val views = RemoteViews(context.packageName, R.layout.task_widget)
@@ -46,8 +45,9 @@ class TaskWidgetProvider : HomeWidgetProvider() {
           views.setViewVisibility(R.id.empty_state, View.GONE)
           views.setViewVisibility(R.id.content, View.VISIBLE)
 
-          views.setTextViewText(R.id.time, picked.time)
+          views.setTextViewText(R.id.time_status, picked.timeStatus)
           views.setTextViewText(R.id.task_title, picked.title)
+          views.setTextViewText(R.id.time_window, picked.timeWindow)
 
           // Interactive: mark as done (handled in Dart background callback)
           val uri = Uri.parse(
@@ -71,8 +71,8 @@ class TaskWidgetProvider : HomeWidgetProvider() {
       appWidgetManager.updateAppWidget(widgetId, views)
     }
 
-      // Ensure the widget flips to the next task exactly on time.
-      nextRefreshAt?.let { scheduleRefresh(context, appWidgetIds, it) }
+    // Ensure the widget flips to the next task exactly on time.
+    nextRefreshAt?.let { scheduleRefresh(context, appWidgetIds, it) }
   }
 
   private fun parseTasks(json: String): JSONArray {
@@ -89,6 +89,8 @@ class TaskWidgetProvider : HomeWidgetProvider() {
     val dayId: String,
     val time: String,
     val title: String,
+    val timeStatus: String,
+    val timeWindow: String,
     val nextRefreshAt: Long,
   )
 
@@ -100,6 +102,46 @@ class TaskWidgetProvider : HomeWidgetProvider() {
     if (h !in 0..23) return null
     if (m !in 0..59) return null
     return h * 60 + m
+  }
+
+  private fun formatMinutes(minutes: Int): String {
+    if (minutes < 60) return "$minutes min"
+
+    val hours = minutes / 60
+    val remaining = minutes % 60
+    if (remaining == 0) return "${hours}h"
+    return "${hours}h ${remaining}min"
+  }
+
+  private fun formatHHmm(minutes: Int): String {
+    val h = (minutes / 60).toString().padStart(2, '0')
+    val m = (minutes % 60).toString().padStart(2, '0')
+    return "$h:$m"
+  }
+
+  private fun timeStatus(startMinutes: Int, nowMinutes: Int): String {
+    val delta = startMinutes - nowMinutes
+    return when {
+      delta > 0 -> "em ${formatMinutes(delta)}"
+      delta >= -5 -> "agora"
+      else -> "em andamento"
+    }
+  }
+
+  private fun timeWindow(time: String, nextMinutes: Int?): String {
+    return if (nextMinutes == null) {
+      "$time • fecha esse passo com calma"
+    } else {
+      "$time - ${formatHHmm(nextMinutes)} • um passo de cada vez"
+    }
+  }
+
+  private fun nextMinuteAt(): Long {
+    val c = Calendar.getInstance()
+    c.set(Calendar.SECOND, 0)
+    c.set(Calendar.MILLISECOND, 0)
+    c.add(Calendar.MINUTE, 1)
+    return c.timeInMillis
   }
 
   // Same rule as iOS widget:
@@ -137,13 +179,18 @@ class TaskWidgetProvider : HomeWidgetProvider() {
     // Before first
     if (nowMinutes < parsed[0].second) {
       val o = parsed[0].first
+      val start = parsed[0].second
+      val nextStart = parsed.getOrNull(1)?.second
+      val refreshAt = minOf(todayAt(start), nextMinuteAt())
       return Picked(
         activityId = o.activityId,
         weekId = o.weekId,
         dayId = o.dayId,
         time = o.time,
         title = o.title,
-        nextRefreshAt = todayAt(parsed[0].second),
+        timeStatus = timeStatus(start, nowMinutes),
+        timeWindow = timeWindow(o.time, nextStart),
+        nextRefreshAt = refreshAt,
       )
     }
 
@@ -155,13 +202,17 @@ class TaskWidgetProvider : HomeWidgetProvider() {
         val next = parsed[nextIdx]
         if (nowMinutes >= current.second && nowMinutes < next.second) {
           val o = current.first
+          val start = current.second
+          val nextStart = next.second
           return Picked(
             activityId = o.activityId,
             weekId = o.weekId,
             dayId = o.dayId,
             time = o.time,
             title = o.title,
-            nextRefreshAt = todayAt(next.second),
+            timeStatus = timeStatus(start, nowMinutes),
+            timeWindow = timeWindow(o.time, nextStart),
+            nextRefreshAt = todayAt(nextStart),
           )
         }
       }
@@ -170,6 +221,7 @@ class TaskWidgetProvider : HomeWidgetProvider() {
     // After last
     val last = parsed[parsed.size - 1]
     val o = last.first
+    val start = last.second
 
     val tomorrow = Calendar.getInstance()
     tomorrow.timeInMillis = Calendar.getInstance().timeInMillis
@@ -185,6 +237,8 @@ class TaskWidgetProvider : HomeWidgetProvider() {
       dayId = o.dayId,
       time = o.time,
       title = o.title,
+      timeStatus = timeStatus(start, nowMinutes),
+      timeWindow = timeWindow(o.time, null),
       nextRefreshAt = tomorrow.timeInMillis,
     )
   }

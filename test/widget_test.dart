@@ -15,4 +15,10 @@ void main() {
     // 2024-12-30 (Mon) is in ISO week 1 of 2025.
     expect(DateIds.weekId(DateTime(2024, 12, 30)), '2025-W01');
   });
+
+  test('DateIds.routineDayId is fixed by weekday', () {
+    expect(DateIds.routineWeekId, 'weekly-routine');
+    expect(DateIds.routineDayId(DateTime(2026, 6, 1)), 'weekday-1');
+    expect(DateIds.routineDayId(DateTime(2026, 6, 7)), 'weekday-7');
+  });
 }

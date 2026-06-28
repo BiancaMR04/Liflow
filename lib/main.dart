@@ -6,7 +6,7 @@ import 'package:home_widget/home_widget.dart';
 
 import 'firebase_options.dart';
 import 'services/widget_interactivity.dart';
-import 'screens/week/week_screen.dart';
+import 'screens/home_shell.dart';
 import 'ui/app_theme.dart';
 
 Future<void> main() async {
@@ -33,8 +33,8 @@ Future<void> main() async {
     }
   }
 
-  // Enables Android widget interactivity (background callback).
-  WidgetInteractivity.register();
+  // Enables widget interactivity callbacks.
+  await WidgetInteractivity.register();
 
   runApp(const MyApp());
 }
@@ -48,7 +48,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Liflow',
       theme: buildAppTheme(),
-      home: const WeekScreen(),
+      darkTheme: buildDarkAppTheme(),
+      themeMode: ThemeMode.system,
+      home: const HomeShell(),
     );
   }
 }

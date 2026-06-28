@@ -35,8 +35,8 @@ class WidgetTaskSnapshotService {
   /// [cutoffTime] must be in "HH:mm" format (e.g. "12:00").
   Future<void> updateToday({required String cutoffTime}) async {
     final now = DateTime.now();
-    final weekId = DateIds.weekId(now);
-    final dayId = DateIds.dayId(now);
+    final weekId = DateIds.routineWeekId;
+    final dayId = DateIds.routineDayId(now);
     await updateForDay(
       weekId: weekId,
       dayId: dayId,
@@ -65,6 +65,7 @@ class WidgetTaskSnapshotService {
     final tasks = _buildTasksJson(
       weekId: weekId,
       dayId: dayId,
+      date: date,
       activities: activities,
       cutoffTime: cutoffTime,
     );
@@ -72,6 +73,7 @@ class WidgetTaskSnapshotService {
     final dayTasks = _buildDayTasksJson(
       weekId: weekId,
       dayId: dayId,
+      date: date,
       activities: activities,
     );
 
@@ -108,12 +110,11 @@ class WidgetTaskSnapshotService {
   List<Map<String, dynamic>> _buildTasksJson({
     required String weekId,
     required String dayId,
+    required DateTime date,
     required List<Activity> activities,
     required String cutoffTime,
   }) {
-    final pending = activities
-        .where((a) => a.status != ActivityStatus.done)
-        .toList();
+    final pending = activities.where((a) => !_isDoneForDate(a, date)).toList();
 
     // They should already be sorted by Firestore query (scheduledTime, order),
     // but we keep a stable local sort as a safety net.
@@ -187,10 +188,11 @@ class WidgetTaskSnapshotService {
   List<Map<String, dynamic>> _buildDayTasksJson({
     required String weekId,
     required String dayId,
+    required DateTime date,
     required List<Activity> activities,
   }) {
     final pending = activities
-        .where((a) => a.status != ActivityStatus.done)
+        .where((a) => !_isDoneForDate(a, date))
         .where((a) => (a.scheduledTime ?? '').isNotEmpty)
         .toList();
 
@@ -222,5 +224,15 @@ class WidgetTaskSnapshotService {
     if (h < 0 || h > 23) return null;
     if (m < 0 || m > 59) return null;
     return h * 60 + m;
+  }
+
+  bool _isDoneForDate(Activity activity, DateTime date) {
+    if (activity.status != ActivityStatus.done) return false;
+    final completedAt = activity.completedAt;
+    if (completedAt == null) return false;
+
+    return completedAt.year == date.year &&
+        completedAt.month == date.month &&
+        completedAt.day == date.day;
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -13,7 +15,8 @@ class NotificationService {
 
   static final NotificationService instance = NotificationService._();
 
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
   bool _tzInitialized = false;
@@ -70,14 +73,20 @@ class NotificationService {
 
     // iOS/macOS: request local notification permission.
     try {
-      final ios = _plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+      final ios = _plugin
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >();
       await ios?.requestPermissions(alert: true, badge: true, sound: true);
     } catch (_) {
       // Ignore any platform exceptions.
     }
 
     try {
-      final mac = _plugin.resolvePlatformSpecificImplementation<MacOSFlutterLocalNotificationsPlugin>();
+      final mac = _plugin
+          .resolvePlatformSpecificImplementation<
+            MacOSFlutterLocalNotificationsPlugin
+          >();
       await mac?.requestPermissions(alert: true, badge: true, sound: true);
     } catch (_) {
       // Ignore any platform exceptions.
@@ -85,7 +94,10 @@ class NotificationService {
 
     // Android 13+: request notification permission.
     try {
-      final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       await android?.requestNotificationsPermission();
 
       // Android 14+: best-effort request exact alarms permission (API varies by plugin version).
@@ -114,7 +126,11 @@ class NotificationService {
     return hash & 0x7FFFFFFF;
   }
 
-  int _notificationId({required String weekId, required String dayId, required String activityId}) {
+  int _notificationId({
+    required String weekId,
+    required String dayId,
+    required String activityId,
+  }) {
     return _stableId('$weekId|$dayId|$activityId');
   }
 
@@ -126,11 +142,84 @@ class NotificationService {
 
   bool _enabled(Map<String, dynamic> reminder) => reminder['enabled'] == true;
 
+  DateTime? _scheduledAtFromHHmm({
+    required DateTime reminderDate,
+    required String? scheduledTime,
+  }) {
+    if (scheduledTime == null || scheduledTime.isEmpty) return null;
+
+    final parts = scheduledTime.split(':');
+    if (parts.length != 2) return null;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+    if (hour < 0 || hour > 23) return null;
+    if (minute < 0 || minute > 59) return null;
+
+    return DateTime(
+      reminderDate.year,
+      reminderDate.month,
+      reminderDate.day,
+      hour,
+      minute,
+    );
+  }
+
+  String _clockLabel(DateTime dt) {
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  String _durationLabel(int minutes) {
+    if (minutes < 60) return '$minutes min';
+
+    final hours = minutes ~/ 60;
+    final remaining = minutes % 60;
+    if (remaining == 0) return '${hours}h';
+    return '${hours}h ${remaining}min';
+  }
+
+  String _encouragement(DateTime reference) {
+    final hour = reference.hour;
+    if (hour < 12) return 'Começa leve e deixa o dia ganhar ritmo.';
+    if (hour < 18) return 'Retoma o foco com calma. Um passo já conta.';
+    return 'Fecha esse passo no seu ritmo. Você dá conta.';
+  }
+
+  String _notificationBody({
+    required DateTime remindAt,
+    required String? scheduledTime,
+  }) {
+    final scheduledAt = _scheduledAtFromHHmm(
+      reminderDate: remindAt,
+      scheduledTime: scheduledTime,
+    );
+
+    final pieces = <String>[];
+    if (scheduledAt != null) {
+      final minutesUntilStart = scheduledAt.difference(remindAt).inMinutes;
+      if (minutesUntilStart > 0) {
+        pieces.add('Começa em ${_durationLabel(minutesUntilStart)}');
+      } else if (minutesUntilStart >= -2) {
+        pieces.add('Começa agora');
+      } else {
+        pieces.add('Já está no horário');
+      }
+      pieces.add(_clockLabel(scheduledAt));
+    }
+
+    pieces.add(_encouragement(scheduledAt ?? remindAt));
+    return pieces.join(' • ');
+  }
+
   Future<void> scheduleForActivityIfEnabled({
     required String weekId,
     required String dayId,
     required String activityId,
     required String title,
+    String? scheduledTime,
     required Map<String, dynamic> reminder,
   }) async {
     if (!_enabled(reminder)) return;
@@ -143,22 +232,38 @@ class NotificationService {
 
     await _ensureInitialized();
 
-    final id = _notificationId(weekId: weekId, dayId: dayId, activityId: activityId);
+    final id = _notificationId(
+      weekId: weekId,
+      dayId: dayId,
+      activityId: activityId,
+    );
+    final notificationTitle = title.trim().isEmpty
+        ? 'Seu próximo passo'
+        : title.trim();
+    final notificationBody = _notificationBody(
+      remindAt: remindAt,
+      scheduledTime: scheduledTime,
+    );
 
-    const androidDetails = AndroidNotificationDetails(
+    final androidDetails = AndroidNotificationDetails(
       'liflow_reminders',
       'Lembretes',
       channelDescription: 'Lembretes de atividades do Liflow',
       importance: Importance.max,
       priority: Priority.high,
+      color: const Color(0xFFEF8F9B),
+      styleInformation: BigTextStyleInformation(notificationBody),
+      ticker: notificationTitle,
     );
 
-    const darwinDetails = DarwinNotificationDetails(
+    final darwinDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentSound: true,
+      subtitle: scheduledTime == null ? null : 'Liflow • $scheduledTime',
+      threadIdentifier: 'liflow_reminders',
     );
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: darwinDetails,
       macOS: darwinDetails,
@@ -168,8 +273,8 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       id,
-      title,
-      null,
+      notificationTitle,
+      notificationBody,
       scheduled,
       details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -187,7 +292,11 @@ class NotificationService {
     required String activityId,
   }) async {
     await _ensureInitialized();
-    final id = _notificationId(weekId: weekId, dayId: dayId, activityId: activityId);
+    final id = _notificationId(
+      weekId: weekId,
+      dayId: dayId,
+      activityId: activityId,
+    );
     await _plugin.cancel(id);
   }
 
@@ -209,7 +318,11 @@ class NotificationService {
     required DateTime createdAt,
     required DateTime updatedAt,
   }) async {
-    final id = _notificationId(weekId: weekId, dayId: dayId, activityId: activityId);
+    final id = _notificationId(
+      weekId: weekId,
+      dayId: dayId,
+      activityId: activityId,
+    );
 
     final reminderWithId = Map<String, dynamic>.from(reminder);
     if (reminderWithId['enabled'] == true) {
@@ -239,6 +352,7 @@ class NotificationService {
       dayId: dayId,
       activityId: activityId,
       title: title,
+      scheduledTime: scheduledTime,
       reminder: reminderWithId,
     );
   }

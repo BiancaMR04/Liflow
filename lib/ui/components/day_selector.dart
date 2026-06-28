@@ -1,28 +1,22 @@
 import 'package:flutter/material.dart';
 
 class DaySelector extends StatelessWidget {
-  final DateTime anchorDate;
-  final int basePage;
-  final int selectedPage;
+  final List<DateTime> dates;
+  final int selectedIndex;
   final PageController controller;
   final String Function(DateTime date) weekdayLabel;
   final bool Function(DateTime date) isToday;
-  final ValueChanged<int> onPageChanged;
+  final ValueChanged<int> onIndexChanged;
 
   const DaySelector({
     super.key,
-    required this.anchorDate,
-    required this.basePage,
-    required this.selectedPage,
+    required this.dates,
+    required this.selectedIndex,
     required this.controller,
     required this.weekdayLabel,
     required this.isToday,
-    required this.onPageChanged,
+    required this.onIndexChanged,
   });
-
-  DateTime _dateForPage(int page) {
-    return anchorDate.add(Duration(days: page - basePage));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +26,11 @@ class DaySelector extends StatelessWidget {
       height: 104,
       child: PageView.builder(
         controller: controller,
-        onPageChanged: onPageChanged,
-        itemBuilder: (context, page) {
-          final date = _dateForPage(page);
-          final selected = page == selectedPage;
+        itemCount: dates.length,
+        onPageChanged: onIndexChanged,
+        itemBuilder: (context, index) {
+          final date = dates[index];
+          final selected = index == selectedIndex;
           final today = isToday(date);
 
           final bg = selected
@@ -53,7 +48,7 @@ class DaySelector extends StatelessWidget {
           return Center(
             child: InkWell(
               customBorder: const CircleBorder(),
-              onTap: () => onPageChanged(page),
+              onTap: () => onIndexChanged(index),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOutCubic,

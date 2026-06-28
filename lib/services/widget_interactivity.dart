@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:home_widget/home_widget.dart';
@@ -7,11 +8,12 @@ import 'package:flutter/widgets.dart';
 
 import '../firebase_options.dart';
 import 'firestore_activity_service.dart';
+import 'notification_service.dart';
 import 'widget_task_snapshot_service.dart';
 
 /// Widget interactivity callback.
 ///
-/// This is invoked by the Android widget via HomeWidgetBackgroundReceiver.
+/// This is invoked by Android widget taps and iOS 17 interactive widget buttons.
 ///
 /// IMPORTANT:
 /// - Keep it fast and side-effect focused.
@@ -29,6 +31,12 @@ class WidgetInteractivity {
     if (uri == null) return;
 
     WidgetsFlutterBinding.ensureInitialized();
+
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS)) {
+      await HomeWidget.setAppGroupId('group.com.example.liflow');
+    }
 
     // Initialize Firebase if available.
     // If Firebase isn't configured yet, this will throw; we fail gracefully.
@@ -69,6 +77,16 @@ class WidgetInteractivity {
         done: true,
       );
 
+      try {
+        await NotificationService.instance.cancelForActivity(
+          weekId: weekId,
+          dayId: dayId,
+          activityId: activityId,
+        );
+      } catch (_) {
+        // Marking the task done is the important part; notification cleanup is best effort.
+      }
+
       // Refresh widget snapshot so the completed task disappears.
       await widgetSnapshot.updateForDay(
         weekId: weekId,
@@ -81,7 +99,7 @@ class WidgetInteractivity {
     }
   }
 
-  static void register() {
-    HomeWidget.registerInteractivityCallback(callback);
+  static Future<void> register() async {
+    await HomeWidget.registerInteractivityCallback(callback);
   }
 }

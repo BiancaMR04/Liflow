@@ -12,6 +12,81 @@ import '../../ui/components/day_selector.dart';
 import '../../ui/components/task_card.dart';
 import '../../ui/components/soft_card.dart';
 
+class _RitualMoodOption {
+  final String value;
+  final String assetPath;
+  final String label;
+
+  const _RitualMoodOption({
+    required this.value,
+    required this.assetPath,
+    required this.label,
+  });
+}
+
+const List<_RitualMoodOption> _ritualMoodOptions = [
+  _RitualMoodOption(
+    value: 'chock',
+    assetPath: 'assets/chock.jpeg',
+    label: 'chocada',
+  ),
+  _RitualMoodOption(
+    value: 'cocacola',
+    assetPath: 'assets/cocacola.jpeg',
+    label: 'querendo uma pausa',
+  ),
+  _RitualMoodOption(
+    value: 'feliz',
+    assetPath: 'assets/feliz.jpeg',
+    label: 'feliz',
+  ),
+  _RitualMoodOption(
+    value: 'furiosa',
+    assetPath: 'assets/furiosa.jpeg',
+    label: 'furiosa',
+  ),
+  _RitualMoodOption(
+    value: 'linda',
+    assetPath: 'assets/linda.jpeg',
+    label: 'linda',
+  ),
+  _RitualMoodOption(
+    value: 'maldosa',
+    assetPath: 'assets/maldosa.jpeg',
+    label: 'maldosa',
+  ),
+  _RitualMoodOption(
+    value: 'pensante',
+    assetPath: 'assets/pensante.jpeg',
+    label: 'pensante',
+  ),
+  _RitualMoodOption(
+    value: 'preocupada',
+    assetPath: 'assets/preocupada.jpeg',
+    label: 'preocupada',
+  ),
+  _RitualMoodOption(
+    value: 'programadora',
+    assetPath: 'assets/programadora.jpeg',
+    label: 'programadora',
+  ),
+  _RitualMoodOption(
+    value: 'socadora',
+    assetPath: 'assets/socadora.jpeg',
+    label: 'com energia',
+  ),
+  _RitualMoodOption(
+    value: 'suspeito',
+    assetPath: 'assets/suspeito.jpeg',
+    label: 'suspeita',
+  ),
+  _RitualMoodOption(
+    value: 'triste',
+    assetPath: 'assets/triste.jpeg',
+    label: 'triste',
+  ),
+];
+
 class WeekScreen extends StatefulWidget {
   const WeekScreen({super.key});
 
@@ -24,13 +99,14 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
   late final WidgetTaskSnapshotService _widgetSnapshot =
       WidgetTaskSnapshotService(_service);
 
-  static const int _basePage = 10000;
+  static const int _todayIndex = 1;
+  static const int _visibleDayCount = 8;
 
   late final PageController _selectorController;
   late final PageController _contentController;
 
-  late DateTime _anchorDate;
-  int _selectedPage = _basePage;
+  late DateTime _windowToday;
+  int _selectedIndex = _todayIndex;
 
   bool _authWarningShown = false;
 
@@ -43,14 +119,14 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
     // We keep the UX "no-login" by trying anonymous auth.
     _ensureAnonymousAuth();
 
-    _anchorDate = _today();
-    _selectedPage = _basePage;
+    _windowToday = _today();
+    _selectedIndex = _todayIndex;
 
     _selectorController = PageController(
-      initialPage: _basePage,
+      initialPage: _todayIndex,
       viewportFraction: 0.30,
     );
-    _contentController = PageController(initialPage: _basePage);
+    _contentController = PageController(initialPage: _todayIndex);
 
     _refreshWidgetSnapshotToday();
   }
@@ -88,6 +164,16 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      final today = _today();
+      if (!_isSameDay(today, _windowToday)) {
+        setState(() {
+          _windowToday = today;
+          _selectedIndex = _todayIndex;
+        });
+        _selectorController.jumpToPage(_todayIndex);
+        _contentController.jumpToPage(_todayIndex);
+      }
+
       _refreshWidgetSnapshotToday();
     }
   }
@@ -97,27 +183,46 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
     return DateTime(now.year, now.month, now.day);
   }
 
-  DateTime _startOfWeek(DateTime date) {
-    // Monday = 1
-    return date.subtract(Duration(days: date.weekday - DateTime.monday));
-  }
-
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  DateTime _dateForPage(int page) {
-    return _anchorDate.add(Duration(days: page - _basePage));
+  List<DateTime> _visibleDates() {
+    return List<DateTime>.generate(
+      _visibleDayCount,
+      (index) => _windowToday.add(Duration(days: index - _todayIndex)),
+    );
   }
 
-  List<DateTime> _daysOfWeek(DateTime date) {
-    final start = _startOfWeek(date);
-    return List<DateTime>.generate(7, (i) => start.add(Duration(days: i)));
+  String _routineWeekId() {
+    return DateIds.routineWeekId;
+  }
+
+  String _routineDayId(DateTime date) {
+    return DateIds.routineDayId(date);
   }
 
   String _weekdayLabel(DateTime date) {
     const labels = <String>['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
     return labels[date.weekday - 1];
+  }
+
+  String _weekdayFullLabel(DateTime date) {
+    const labels = <String>[
+      'segunda',
+      'terça',
+      'quarta',
+      'quinta',
+      'sexta',
+      'sábado',
+      'domingo',
+    ];
+    return labels[date.weekday - 1];
+  }
+
+  DateTime _dateForWeekday(int weekday) {
+    final delta = (weekday - _windowToday.weekday) % DateTime.daysPerWeek;
+    return _windowToday.add(Duration(days: delta));
   }
 
   int? _parseMinutes(String? hhmm) {
@@ -148,6 +253,28 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
     final minutes = _parseMinutes(a.scheduledTime);
     if (minutes == null) return true;
     return minutes < 5 * 60 || minutes >= 18 * 60;
+  }
+
+  bool _isDoneForDate(Activity activity, DateTime date) {
+    if (activity.status != ActivityStatus.done) return false;
+    final completedAt = activity.completedAt;
+    if (completedAt == null) return false;
+
+    return _isSameDay(completedAt, date);
+  }
+
+  DateTime _completionTimeForDate(DateTime date) {
+    final now = DateTime.now();
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+      now.hour,
+      now.minute,
+      now.second,
+      now.millisecond,
+      now.microsecond,
+    );
   }
 
   Widget _sectionHeader(BuildContext context, String title) {
@@ -208,16 +335,6 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
           return const SizedBox.shrink();
         }
 
-        FilledButton moodButton({
-          required String value,
-          required String label,
-        }) {
-          return FilledButton.tonal(
-            onPressed: () async => setMoodAndNotify(value),
-            child: Text(label),
-          );
-        }
-
         return SoftCard(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           child: Column(
@@ -236,21 +353,57 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: moodButton(value: 'low', label: 'Baixa'),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: moodButton(value: 'ok', label: 'Ok'),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: moodButton(value: 'high', label: 'Alta'),
-                  ),
-                ],
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _ritualMoodOptions.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 6,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                ),
+                itemBuilder: (context, index) {
+                  final option = _ritualMoodOptions[index];
+
+                  return Semantics(
+                    button: true,
+                    label: 'Responder ${option.label}',
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () async => setMoodAndNotify(option.value),
+                        child: Padding(
+                          padding: const EdgeInsets.all(1),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(13),
+                            child: Image.asset(
+                              option.assetPath,
+                              fit: BoxFit.cover,
+                              alignment: Alignment.center,
+                              errorBuilder: (context, error, stackTrace) {
+                                return DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: theme
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                  ),
+                                  child: Icon(
+                                    Icons.image_not_supported_outlined,
+                                    size: 18,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -290,6 +443,7 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
         dayId: dayId,
         activityId: activityId,
         done: done,
+        completedAt: done ? _completionTimeForDate(date) : null,
       );
     } on FirebaseException catch (e) {
       if (mounted) {
@@ -317,6 +471,7 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
         dayId: dayId,
         activityId: activityId,
         title: activity.title,
+        scheduledTime: activity.scheduledTime,
         reminder: activity.reminder,
       );
     }
@@ -325,8 +480,8 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _openCreateActivity(DateTime date) async {
-    final weekId = DateIds.weekId(date);
-    final dayId = DateIds.dayId(date);
+    final weekId = _routineWeekId();
+    final dayId = _routineDayId(date);
 
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
@@ -347,8 +502,8 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
     required DateTime date,
     required Activity activity,
   }) async {
-    final weekId = DateIds.weekId(date);
-    final dayId = DateIds.dayId(date);
+    final weekId = _routineWeekId();
+    final dayId = _routineDayId(date);
 
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
@@ -369,44 +524,142 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
     await _refreshWidgetIfToday(date);
   }
 
+  Future<void> _cancelNotificationsForRoutineDay({
+    required String weekId,
+    required String dayId,
+  }) async {
+    final existingActivities = await _service.getDayActivities(
+      weekId: weekId,
+      dayId: dayId,
+    );
+    for (final activity in existingActivities) {
+      final id = activity.id;
+      if (id == null) continue;
+      await NotificationService.instance.cancelForActivity(
+        weekId: weekId,
+        dayId: dayId,
+        activityId: id,
+      );
+    }
+  }
+
+  Future<void> _scheduleNotificationsForRoutineDay({
+    required String weekId,
+    required String dayId,
+  }) async {
+    final activities = await _service.getDayActivities(
+      weekId: weekId,
+      dayId: dayId,
+    );
+    for (final activity in activities) {
+      final id = activity.id;
+      if (id == null) continue;
+      await NotificationService.instance.scheduleForActivityIfEnabled(
+        weekId: weekId,
+        dayId: dayId,
+        activityId: id,
+        title: activity.title,
+        scheduledTime: activity.scheduledTime,
+        reminder: activity.reminder,
+      );
+    }
+  }
+
+  Future<void> _replaceRoutineDay({
+    required DateTime sourceDate,
+    required DateTime targetDate,
+  }) async {
+    final weekId = _routineWeekId();
+    final sourceDayId = _routineDayId(sourceDate);
+    final targetDayId = _routineDayId(targetDate);
+
+    if (sourceDayId == targetDayId) return;
+
+    await _cancelNotificationsForRoutineDay(weekId: weekId, dayId: targetDayId);
+
+    await _service.duplicateDayReplace(
+      sourceWeekId: weekId,
+      sourceDayId: sourceDayId,
+      targetWeekId: weekId,
+      targetDayId: targetDayId,
+      targetDate: targetDate,
+    );
+
+    await _scheduleNotificationsForRoutineDay(
+      weekId: weekId,
+      dayId: targetDayId,
+    );
+
+    if (targetDate.weekday == _today().weekday) {
+      await _refreshWidgetSnapshotToday();
+    }
+  }
+
   Future<void> _duplicateDayFlow(DateTime sourceDate) async {
-    final sourceWeekId = DateIds.weekId(sourceDate);
-    final sourceDayId = DateIds.dayId(sourceDate);
+    final theme = Theme.of(context);
+    final sourceLabel = _weekdayFullLabel(sourceDate);
 
-    final daysInWeek = _daysOfWeek(sourceDate);
-
-    final targetDate = await showModalBottomSheet<DateTime>(
+    final targetWeekday = await showModalBottomSheet<int>(
       context: context,
       builder: (context) {
+        final targetDates = List<DateTime>.generate(
+          DateTime.daysPerWeek,
+          (index) => _dateForWeekday(index + DateTime.monday),
+        );
+
         return SafeArea(
           child: ListView(
-            children: daysInWeek
-                .where((d) => !_isSameDay(d, sourceDate))
-                .map(
-                  (d) => ListTile(
-                    title: Text(
-                      '${_weekdayLabel(d)} ${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}',
-                    ),
-                    onTap: () => Navigator.of(context).pop(d),
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: [
+              ListTile(
+                title: Text(
+                  'Copiar $sourceLabel',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                )
-                .toList(),
+                ),
+                subtitle: const Text('Escolha onde substituir a rotina.'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.auto_awesome_motion_outlined),
+                title: const Text('Aplicar a todos os dias'),
+                subtitle: const Text('Todos os dias ficam iguais a este.'),
+                onTap: () => Navigator.of(context).pop(0),
+              ),
+              const Divider(height: 10),
+              ...targetDates
+                  .where((date) => date.weekday != sourceDate.weekday)
+                  .map(
+                    (date) => ListTile(
+                      leading: const Icon(Icons.copy),
+                      title: Text(_weekdayFullLabel(date)),
+                      subtitle: Text(
+                        '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}',
+                      ),
+                      onTap: () => Navigator.of(context).pop(date.weekday),
+                    ),
+                  ),
+            ],
           ),
         );
       },
     );
 
-    if (targetDate == null) return;
+    if (!mounted || targetWeekday == null) return;
 
-    if (!mounted) return;
+    final applyingToAll = targetWeekday == 0;
+    final targetDate = applyingToAll ? null : _dateForWeekday(targetWeekday);
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Substituir dia?'),
-          content: const Text(
-            'Isso vai apagar tudo no dia destino e copiar as atividades do dia atual (SUBSTITUIR).',
+          title: Text(applyingToAll ? 'Aplicar a todos?' : 'Substituir dia?'),
+          content: Text(
+            applyingToAll
+                ? 'Isso vai substituir todos os outros dias pela rotina de $sourceLabel.'
+                : 'Isso vai substituir ${_weekdayFullLabel(targetDate!)} pela rotina de $sourceLabel.',
           ),
           actions: <Widget>[
             TextButton(
@@ -424,65 +677,35 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
 
     if (confirmed != true) return;
 
-    final targetWeekId = DateIds.weekId(targetDate);
-    final targetDayId = DateIds.dayId(targetDate);
-
-    // Cancel notifications for activities that will be removed.
-    final existingTargetActivities = await _service.getDayActivities(
-      weekId: targetWeekId,
-      dayId: targetDayId,
-    );
-    for (final a in existingTargetActivities) {
-      final id = a.id;
-      if (id == null) continue;
-      await NotificationService.instance.cancelForActivity(
-        weekId: targetWeekId,
-        dayId: targetDayId,
-        activityId: id,
-      );
+    if (applyingToAll) {
+      for (
+        var weekday = DateTime.monday;
+        weekday <= DateTime.sunday;
+        weekday++
+      ) {
+        if (weekday == sourceDate.weekday) continue;
+        await _replaceRoutineDay(
+          sourceDate: sourceDate,
+          targetDate: _dateForWeekday(weekday),
+        );
+      }
+    } else {
+      await _replaceRoutineDay(sourceDate: sourceDate, targetDate: targetDate!);
     }
-
-    await _service.duplicateDayReplace(
-      sourceWeekId: sourceWeekId,
-      sourceDayId: sourceDayId,
-      targetWeekId: targetWeekId,
-      targetDayId: targetDayId,
-      targetDate: targetDate,
-    );
-
-    // Schedule notifications for copied reminders (best effort).
-    final copiedTargetActivities = await _service.getDayActivities(
-      weekId: targetWeekId,
-      dayId: targetDayId,
-    );
-    for (final a in copiedTargetActivities) {
-      final id = a.id;
-      if (id == null) continue;
-      await NotificationService.instance.scheduleForActivityIfEnabled(
-        weekId: targetWeekId,
-        dayId: targetDayId,
-        activityId: id,
-        title: a.title,
-        reminder: a.reminder,
-      );
-    }
-
-    // Widget refresh if today was affected.
-    await _refreshWidgetIfToday(sourceDate);
-    await _refreshWidgetIfToday(targetDate);
 
     if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Dia duplicado.')));
+      ).showSnackBar(const SnackBar(content: Text('Rotina copiada.')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedDate = _dateForPage(_selectedPage);
-    final selectedWeekId = DateIds.weekId(selectedDate);
-    final selectedDayId = DateIds.dayId(selectedDate);
+    final visibleDates = _visibleDates();
+    final selectedDate = visibleDates[_selectedIndex];
+    final selectedRitualWeekId = DateIds.weekId(selectedDate);
+    final selectedRitualDayId = DateIds.dayId(selectedDate);
 
     return Scaffold(
       appBar: AppBar(
@@ -498,17 +721,21 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
       body: Column(
         children: [
           DaySelector(
-            anchorDate: _anchorDate,
-            basePage: _basePage,
-            selectedPage: _selectedPage,
+            dates: visibleDates,
+            selectedIndex: _selectedIndex,
             controller: _selectorController,
             weekdayLabel: _weekdayLabel,
             isToday: (d) => _isSameDay(d, _today()),
-            onPageChanged: (page) {
-              if (page == _selectedPage) return;
-              setState(() => _selectedPage = page);
+            onIndexChanged: (index) {
+              if (index == _selectedIndex) return;
+              setState(() => _selectedIndex = index);
+              _selectorController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+              );
               _contentController.animateToPage(
-                page,
+                index,
                 duration: const Duration(milliseconds: 320),
                 curve: Curves.easeInOutCubic,
               );
@@ -518,26 +745,27 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: _ritualCard(
               date: selectedDate,
-              weekId: selectedWeekId,
-              dayId: selectedDayId,
+              weekId: selectedRitualWeekId,
+              dayId: selectedRitualDayId,
             ),
           ),
           Expanded(
             child: PageView.builder(
               controller: _contentController,
-              onPageChanged: (page) {
-                if (page == _selectedPage) return;
-                setState(() => _selectedPage = page);
+              itemCount: visibleDates.length,
+              onPageChanged: (index) {
+                if (index == _selectedIndex) return;
+                setState(() => _selectedIndex = index);
                 _selectorController.animateToPage(
-                  page,
+                  index,
                   duration: const Duration(milliseconds: 260),
                   curve: Curves.easeOutCubic,
                 );
               },
-              itemBuilder: (context, page) {
-                final date = _dateForPage(page);
-                final weekId = DateIds.weekId(date);
-                final dayId = DateIds.dayId(date);
+              itemBuilder: (context, index) {
+                final date = visibleDates[index];
+                final weekId = _routineWeekId();
+                final dayId = _routineDayId(date);
 
                 return StreamBuilder<List<Activity>>(
                   stream: _service.watchDayActivities(
@@ -578,7 +806,7 @@ class _WeekScreenState extends State<WeekScreen> with WidgetsBindingObserver {
                     Widget cards(List<Activity> list) {
                       return Column(
                         children: list.map((a) {
-                          final done = a.status == ActivityStatus.done;
+                          final done = _isDoneForDate(a, date);
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: TaskCard(

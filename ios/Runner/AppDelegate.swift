@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import UserNotifications
+import home_widget
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -13,6 +14,12 @@ import UserNotifications
     // Ensure local notifications can be presented while app is in foreground.
     if #available(iOS 10.0, *) {
       UNUserNotificationCenter.current().delegate = self
+    }
+
+    if #available(iOS 17, *) {
+      HomeWidgetBackgroundWorker.setPluginRegistrantCallback { registry in
+        GeneratedPluginRegistrant.register(with: registry)
+      }
     }
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)

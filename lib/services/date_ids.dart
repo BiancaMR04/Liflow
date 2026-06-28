@@ -2,12 +2,31 @@
 ///
 /// We keep these rules centralized so week/day navigation stays consistent.
 class DateIds {
+  /// Fixed weekly planner document.
+  ///
+  /// Activities saved here are weekday templates, so "Monday" remains Monday
+  /// across calendar weeks instead of becoming an empty new date next week.
+  static const String routineWeekId = 'weekly-routine';
+
   /// Day id: YYYY-MM-DD (local date).
   static String dayId(DateTime date) {
     final y = date.year.toString().padLeft(4, '0');
     final m = date.month.toString().padLeft(2, '0');
     final d = date.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
+  }
+
+  /// Fixed weekday day id: weekday-1 ... weekday-7 (Monday ... Sunday).
+  static String routineDayId(DateTime date) {
+    return routineDayIdFromWeekday(date.weekday);
+  }
+
+  static String routineDayIdFromWeekday(int weekday) {
+    if (weekday < DateTime.monday || weekday > DateTime.sunday) {
+      throw ArgumentError.value(weekday, 'weekday', 'Must be between 1 and 7');
+    }
+
+    return 'weekday-$weekday';
   }
 
   /// ISO week id: YYYY-Www (e.g. 2025-W52).

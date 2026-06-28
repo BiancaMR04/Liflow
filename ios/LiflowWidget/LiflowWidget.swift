@@ -134,61 +134,183 @@ struct Provider: TimelineProvider {
 struct LiflowWidgetView: View {
     var entry: Provider.Entry
 
-    // Cores estilo Structured
-    private let pinkBackground = Color(red: 0.99, green: 0.91, blue: 0.90)
+    private let pinkBackground = Color(red: 0.99, green: 0.89, blue: 0.88)
     private let cardWhite = Color.white
-    private let accentPink = Color(red: 0.95, green: 0.63, blue: 0.61)
-    private let textPrimary = Color.black
-    private let textSecondary = Color.gray.opacity(0.8)
+    private let accentPink = Color(red: 0.93, green: 0.50, blue: 0.58)
+    private let peach = Color(red: 0.97, green: 0.72, blue: 0.65)
+    private let textPrimary = Color(red: 0.13, green: 0.09, blue: 0.11)
+    private let textSecondary = Color(red: 0.55, green: 0.49, blue: 0.52)
 
     var body: some View {
         ZStack {
-            // Fundo rosa
             RoundedRectangle(cornerRadius: 26)
                 .fill(pinkBackground)
 
             if let task = entry.current {
-                // Card branco
-                HStack(alignment: .top, spacing: 12) {
-
-                    // Bolinha vazada
-                    Circle()
-                        .stroke(accentPink, lineWidth: 2)
-                        .frame(width: 16, height: 16)
-                        .padding(.top, 4)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        // Hora da tarefa (EXATA)
-                        Text(task.time)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(textSecondary)
-
-                        // Título
-                        Text(task.title)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(textPrimary)
-                            .lineLimit(2)
-                    }
-
-                    Spacer()
-                }
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(cardWhite)
-                        .shadow(
-                            color: Color.black.opacity(0.08),
-                            radius: 16,
-                            x: 0,
-                            y: 6
-                        )
-                )
-                .padding(14)
+                taskCard(task)
             } else {
-                Text("Sem tarefa agora")
-                    .font(.headline)
+                emptyCard
             }
         }
+    }
+
+    private func taskCard(_ task: DayTask) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(accentPink.opacity(0.72))
+                        .frame(width: 2, height: 18)
+
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [accentPink, peach],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+
+                        Image(systemName: "briefcase.fill")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    .frame(width: 38, height: 38)
+                }
+
+                Spacer()
+
+                checkButton(for: task)
+                    .padding(.top, 2)
+            }
+
+            Spacer(minLength: 10)
+
+            Text(relativeLabel(for: task))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(textSecondary)
+
+            Text(task.title)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(textPrimary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
+
+            Text(supportLabel(for: task))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(textSecondary.opacity(0.86))
+                .lineLimit(1)
+                .padding(.top, 3)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 22)
+                .fill(cardWhite)
+                .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 6)
+        )
+        .padding(12)
+    }
+
+    @ViewBuilder
+    private func checkButton(for task: DayTask) -> some View {
+        if let url = markDoneUrl(for: task), #available(iOSApplicationExtension 17, *) {
+            Button(intent: BackgroundIntent(url: url, appGroup: appGroupId)) {
+                checkGlyph
+            }
+            .buttonStyle(.plain)
+        } else {
+            checkGlyph
+        }
+    }
+
+    private var checkGlyph: some View {
+        ZStack {
+            Circle()
+                .stroke(accentPink, lineWidth: 2)
+
+            Image(systemName: "checkmark")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(accentPink)
+        }
+        .frame(width: 20, height: 20)
+    }
+
+    private var emptyCard: some View {
+        VStack(spacing: 4) {
+            Text("Tudo em dia")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(textPrimary)
+
+            Text("Respira. O proximo passo aparece aqui.")
+                .font(.system(size: 11, weight: .medium))
+                .multilineTextAlignment(.center)
+                .foregroundColor(textSecondary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 22)
+                .fill(cardWhite)
+                .shadow(color: Color.black.opacity(0.07), radius: 14, x: 0, y: 5)
+        )
+        .padding(12)
+    }
+
+    private func relativeLabel(for task: DayTask) -> String {
+        guard let start = parseMinutes(task.time) else { return task.time }
+
+        let calendar = Calendar.current
+        let now = calendar.component(.hour, from: entry.date) * 60 + calendar.component(.minute, from: entry.date)
+        let delta = start - now
+
+        if delta > 0 {
+            return "em \(durationLabel(delta))"
+        }
+
+        if delta >= -5 {
+            return "agora"
+        }
+
+        return "em andamento"
+    }
+
+    private func supportLabel(for task: DayTask) -> String {
+        "\(task.time) • um passo de cada vez"
+    }
+
+    private func markDoneUrl(for task: DayTask) -> URL? {
+        if task.id.isEmpty || task.weekId.isEmpty || task.dayId.isEmpty {
+            return nil
+        }
+
+        var components = URLComponents()
+        components.scheme = "liflow"
+        components.host = "widget"
+        components.path = "/markDone"
+        components.queryItems = [
+            URLQueryItem(name: "weekId", value: task.weekId),
+            URLQueryItem(name: "dayId", value: task.dayId),
+            URLQueryItem(name: "activityId", value: task.id)
+        ]
+        return components.url
+    }
+
+    private func durationLabel(_ minutes: Int) -> String {
+        if minutes < 60 { return "\(minutes) min" }
+
+        let hours = minutes / 60
+        let remaining = minutes % 60
+        if remaining == 0 { return "\(hours)h" }
+        return "\(hours)h \(remaining)min"
+    }
+
+    private func parseMinutes(_ hhmm: String) -> Int? {
+        let parts = hhmm.split(separator: ":")
+        if parts.count != 2 { return nil }
+        guard let h = Int(parts[0]), let m = Int(parts[1]) else { return nil }
+        if h < 0 || h > 23 || m < 0 || m > 59 { return nil }
+        return h * 60 + m
     }
 }
 

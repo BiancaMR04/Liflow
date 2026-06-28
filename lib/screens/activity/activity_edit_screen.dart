@@ -282,6 +282,7 @@ class _ActivityEditScreenState extends State<ActivityEditScreen> {
           dayId: widget.dayId,
           activityId: id,
           title: title,
+          scheduledTime: _formatHHmm(_scheduledTime),
           reminder: reminder,
         );
 
